@@ -1,40 +1,18 @@
-var restify = require('restify'),
+var frRouting = require('fr-routing'),
     builder = require('./builder');
 
 
-function ciStyle(stylePath) {
-    builder.ciStyle(this, stylePath);
-}
-
-function ciPartial(partialPath) {
-    console.log('CIPartial - RUNJS')
-    builder.ciPartial(this, partialPath);
-}
-
-function ciImage(imagePath) {
-    builder.ciImage(this, imagePath);
-}
-
-function ciFont(fontPath) {
-    builder.ciFont(this, fontPath);
+function nodejs() {
+    builder.nodejs(this);
 }
 
 
 function configureRouter(router, cbDone) {
+    frRouting.configure(router, builder);
 
-    router.get('/ci/style/:path', ciStyle);
-    router.get('/ci/partial/:path', ciPartial);
-    router.get('/ci/image/:path', ciImage);
-    router.get('/ci/font/:path', ciFont);
-    router.get('/disclaimer', builder.disclaimer);
-    router.get('/impressum', builder.impressum);
-    router.get('/', builder.home);
+    //router.get('/co/runjs/article/nodejs', nodejs);
 
-//---- LEGACY Routes ----------------------
-    router.get('/index.html', builder.home);
-//------------------------------------------
-
-    builder.loadPartials(cbDone);
+    builder.loadContent(cbDone);
 }
 
 
