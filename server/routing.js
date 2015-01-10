@@ -1,18 +1,9 @@
-var frRouting = require('fr-routing'),
-    builder = require('./builder');
+var frRouting = require('fr-routing');
 
 
-function nodejs() {
-    builder.nodejs(this);
-}
-
-
-function configureRouter(router, cbDone) {
+function configureRouter(sitename, router, builder, next) {
     frRouting.configure(router, builder);
-
-    //router.get('/co/runjs/article/nodejs', nodejs);
-
-    builder.loadContent(cbDone);
+    builder.loadContent(sitename, next);
 }
 
 
