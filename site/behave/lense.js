@@ -1,19 +1,36 @@
+function Section() {
+
+};
+
 $(function(){
     var checkScroll = true;
-    var $secNavigation = $('#secNavigation');
-    var sectionNavigation = $('<nav id="sectionNavigation"><ul></ul></nav>');
-    var navList = $('ul', sectionNavigation);
+    var $secNavigation = $('#sec-navigation');
+    var $sectionNavigation = $('<nav id="section-navigation"><ul></ul></nav>');
+    var $navigationList = $('ul', $sectionNavigation);
     var $lastMasterSection;
 
-    function fillSectionNavigation($navList) {
-        $('section').each(function() {
+    function getSectionId($section) {
+        return $('> header > h1', $section).attr('id');
+    }
+
+    function getSectionNavEntry($section){
+        return $('#li-'+ getSectionId($section))
+    }
+
+
+    function appendSectionNavigationEntry($navList) {
+        return function addEntry() {
             var sectTitle = $('> header > h1', this).text();
-            var secID = $('> header > h1', this).attr('id');
+            var secID = getSectionId(this);
             var $li = $('<li>' + sectTitle + '</li>');
             $li.attr('id', 'li-'+ secID);
             $navList.append($li);
-        });
-    };
+        }
+    }
+
+    function fillSectionNavigation($navList) {
+        $('section').each(appendSectionNavigationEntry($navList));
+    }
 
 
     function scrollWatcher(event) {
@@ -23,25 +40,24 @@ $(function(){
     }
 
 
-    function isVisible(top, height) {
-        var navTop = 0;
-        var navHeight = $(window).height();
-        var topIntersects = (top > navTop) && (top < (navTop + navHeight));
-        var bottomIntersects = ((top +height) > navTop) && ((top +height)  < (navTop + navHeight))
+    function isVisible(viewportHeight, top, height) {
+        var viewportTop = 0,
+            topIntersects = (top > viewportTop) && (top < (viewportTop + viewportHeight)),
+            bottomIntersects = ((top +height) > viewportTop) && ((top +height)  < (viewportTop + viewportHeight));
 
         return topIntersects || bottomIntersects;
     }
 
     function augmentSectionNavigation() {
-        var offset = $(this).offset();
-        var posY = offset.top - $(window).scrollTop();
-        var height = $(this).height();
-        var $currSection = $('#li-'+$('> header > h1', this).attr('id'));
+        var offset = $(this).offset(),
+            posY = offset.top - $(window).scrollTop(),
+            height = $(this).height();
 
-        if (isVisible(posY, height)) {
-            $currSection.css({'color': 'blue'});
+
+        if (isVisible($(window).height(), posY, height)) {
+            $(this).trigger('startVisibleSection');
         } else {
-            $currSection.css({'color': 'black'});
+            $(this).trigger('finishVisibleSection');
         }
     }
 
@@ -72,18 +88,17 @@ $(function(){
     }
 
     function augmentMasterSection($sections) {
-        var mostVisible = {area: 0, section: null, top:$(window).height() +100};
-        var masterSecID = null;
-        var lastMasterSecID = $('> header > h1', $lastMasterSection).attr('id');
+        var mostVisible = {area: 0, section: null, top:$(window).height() +100},
+            masterSecID = null,
+            lastMasterSecID = getSectionId($lastMasterSection);
 
-        $sections.each(function() {
-            var offset = $(this).offset();
-            var posY = offset.top - $(window).scrollTop();
-            var height = $(this).height();
+        function computeMostVisible() {
+            var offset = $(this).offset(),
+                posY = offset.top - $(window).scrollTop(),
+                height = $(this).height(),
+                visibleHeight = getVisibleHeight($(this)),
+                area = (visibleHeight/height)*100;
 
-            var visibleHeight = getVisibleHeight($(this));
-
-            var area = (visibleHeight/height)*100;
 
             if (area > mostVisible.area) {
                 mostVisible.section = $(this);
@@ -96,26 +111,25 @@ $(function(){
                     mostVisible.top = posY;
                 }
             }
-        });
+        }
 
-        masterSecID = $('> header > h1', mostVisible.section).attr('id');
+        $sections.each(computeMostVisible);
+
+        masterSecID = getSectionId(mostVisible.section);
         if (lastMasterSecID != masterSecID) {
             if ($lastMasterSection) {
-                $('.sources', $('#sectionContext')).appendTo($lastMasterSection);
-                if ($lastMasterSection.hasClass('masterSection')) {
-                    $lastMasterSection.removeClass('masterSection');
-                }
+                $lastMasterSection.trigger('finishMasterSection');
             }
             $lastMasterSection = mostVisible.section;
-            $('.sources', $lastMasterSection).appendTo($('#sectionContext'))
-            $lastMasterSection.addClass('masterSection');
+            $lastMasterSection.trigger('startMasterSection');
         }
 
     }
 
     function augmentVisibleSections() {
-        checkScroll = false;
         var $sections = $('section');
+
+        checkScroll = false;
         return function logger() {
             $sections.each(augmentSectionNavigation);
             augmentMasterSection($sections);
@@ -123,16 +137,77 @@ $(function(){
         }
     }
 
+    function onStartMasterSection(event) {
+        var $sectionNavigationEntry = getSectionNavEntry($(this)),
+            $sectionHeading = $('> header', $(this)).clone(),
+            $sectionContext = $('#section-context');
+
+        $sectionNavigationEntry.addClass('master-section');
+
+
+        $sectionHeading.appendTo($sectionContext);
+        $('.section-context', $(this)).clone().appendTo($sectionContext);
+        $(this).addClass('master-section');
+    }
+
+    function onFinishMasterSection(event) {
+        var $sectionNavigationEntry = getSectionNavEntry($(this)),
+            $sectionContext = $('#section-context'),
+            $sectionContextHeading = $('> header', $sectionContext);
+
+        if ($sectionNavigationEntry.hasClass('master-section')) {
+            $sectionNavigationEntry.removeClass('master-section');
+        }
+        $sectionNavigationEntry.addClass('visible-section');
+        $sectionContextHeading.remove();
+
+
+        $('.section-context', $sectionContext).remove();
+        if ($(this).hasClass('master-section')) {
+            $(this).removeClass('master-section');
+        }
+    }
+
+    function onStartVisibleSection(event) {
+        var $sectionNavigationEntry;
+
+        if (!$(this).hasClass('master-section')) {
+            $sectionNavigationEntry = getSectionNavEntry($(this));
+            $sectionNavigationEntry.addClass('visible-section');
+        }
+    }
+
+    function onFinishVisibleSection(event) {
+        var $sectionNavigationEntry = getSectionNavEntry($(this));
+
+        if ($sectionNavigationEntry.hasClass('visible-section')) {
+            $sectionNavigationEntry.removeClass('visible-section');
+        }
+
+    }
+
+    function initSections($sections) {
+        $sections.each(function () {
+            $(this).on('startVisibleSection', onStartVisibleSection);
+            $(this).on('finishVisibleSection', onFinishVisibleSection);
+            $(this).on('startMasterSection', onStartMasterSection);
+            $(this).on('finishMasterSection', onFinishMasterSection);
+        });
+    }
 
 
     $secNavigation.width(200);
-    $secNavigation.append(sectionNavigation);
+    $secNavigation.append($sectionNavigation);
 
-    fillSectionNavigation(navList);
+    initSections($('section'));
+    fillSectionNavigation($navigationList);
 
     $(window).scroll(scrollWatcher);
 
     augmentVisibleSections()();
 
+    $($secNavigation).width($(window).width() - 20);
+
+    $('#section-context').top(+($($secNavigation).top())+20);
 });
 
