@@ -1,5 +1,10 @@
 function Sections($, $sections) {
     var me = this;
+
+    this.getMasterSection = function getMasterSection() {
+        return $('.master-section', $('article'));
+    };
+
     this.getSectionId = function getSectionId($section) {
         return $('> header > h1', $section).attr('id');
     };
@@ -91,12 +96,22 @@ function Sections($, $sections) {
 
     };
 
+    this.onClick = function onClick(event) {
+        var $currMaster = me.getMasterSection();
+
+        if(me.getSectionId($(this)) != me.getSectionId($currMaster)) {
+            $currMaster.trigger('finishMasterSection');
+        }
+        $(this).trigger('startMasterSection');
+    };
+
     this.initSections = function initSections($sections) {
         $sections.each(function () {
             $(this).on('startVisibleSection', me.onStartVisibleSection);
             $(this).on('finishVisibleSection', me.onFinishVisibleSection);
             $(this).on('startMasterSection', me.onStartMasterSection);
             $(this).on('finishMasterSection', me.onFinishMasterSection);
+            $(this).on('click', me.onClick);
         });
     };
 
@@ -114,18 +129,15 @@ function Sections($, $sections) {
         $('section').each(me.appendSectionNavigationEntry($navList));
     };
 
-
-
     this.initSections($sections);
 
 }
 
-$(function(){
+$(function() {
     var checkScroll = true,
         $secNavigation = $('#sec-navigation'),
         $sectionNavigation = $('<nav id="section-navigation"><ul></ul></nav>'),
         $navigationList = $('ul', $sectionNavigation),
-        $lastMasterSection,
         sections = new Sections($, $('section'));
 
 
@@ -155,7 +167,7 @@ $(function(){
     function augmentMasterSection($sections) {
         var mostVisible = {area: 0, section: null, top:$(window).height() +100},
             masterSecID = null,
-            lastMasterSecID = sections.getSectionId($lastMasterSection);
+            lastMasterSecID = sections.getSectionId(sections.getMasterSection());
 
         function computeMostVisible() {
             var offset = $(this).offset(),
@@ -182,11 +194,10 @@ $(function(){
 
         masterSecID = sections.getSectionId(mostVisible.section);
         if (lastMasterSecID != masterSecID) {
-            if ($lastMasterSection) {
-                $lastMasterSection.trigger('finishMasterSection');
+            if (sections.getMasterSection()) {
+                sections.getMasterSection().trigger('finishMasterSection');
             }
-            $lastMasterSection = mostVisible.section;
-            $lastMasterSection.trigger('startMasterSection');
+            mostVisible.section.trigger('startMasterSection');
         }
 
     }
@@ -203,10 +214,7 @@ $(function(){
     }
 
 
-
-
-
-
+    //--------------------------------------------------------------
     $secNavigation.width(200);
     $secNavigation.append($sectionNavigation);
     $($secNavigation).width($(window).width() - 20);
@@ -216,7 +224,6 @@ $(function(){
     $(window).scroll(scrollWatcher);
 
     augmentVisibleSections()();
-
 
     $('#section-context').top(+($($secNavigation).top())+20);
 });
