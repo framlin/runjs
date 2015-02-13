@@ -1,4 +1,4 @@
-require('fr-server').start("runjs", require('./routing'), require('./builder'));
+require('fr-server').start(__dirname + '/../site', "runjs", require('./routing'), require('./builder'));
 
 
 
